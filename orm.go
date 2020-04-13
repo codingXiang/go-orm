@@ -1,13 +1,13 @@
 package orm
 
 import (
+	"10.40.42.38/BP05G0/go-logger"
 	. "10.40.42.38/BP05G0/go-orm/model"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"    // mysql
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgresql
 	"io/ioutil"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -43,11 +43,15 @@ func NewOrm(config DatabaseInterface) OrmInterface {
 //Init : 初始化 ORM
 func (this *Orm) Init(config DatabaseInterface) OrmInterface {
 	//設定資料庫型態 (MySQL, PostgreSQL) 與連線資訊
+	logger.Log.Debug("setup database type")
 	this.Error = this.setDatabaseType(config)
+
 	//設定資料庫參數
+	logger.Log.Debug("setup database config")
 	this.setDbConfig(config)
 
 	//設定是否開啟 Log 模式
+	logger.Log.Debug("setup log mode =", config.GetLogMode())
 	if config.GetLogMode() {
 		this.GetInstance().LogMode(true)
 		this.SetInstance(this.GetInstance().Debug())
@@ -56,16 +60,19 @@ func (this *Orm) Init(config DatabaseInterface) OrmInterface {
 	}
 
 	//設定預設 Table 前綴字
+	logger.Log.Debug("setup table name prefix", config.GetTablePrefix())
 	gorm.DefaultTableNameHandler = func(db *gorm.DB, defaultTableName string) string {
 		return config.GetTablePrefix() + defaultTableName
 	}
 
 	//設定版本控制 Schema
+	logger.Log.Debug("setup version")
 	this.Error = this.setVersion(config.GetVersion())
 	return this
 }
 
 func (this *Orm) CloseDB() {
+	logger.Log.Debug("close database connection")
 	defer this.GetInstance().Close()
 }
 
@@ -110,21 +117,25 @@ func (this *Orm) SetInstance(db *gorm.DB) {
 //setDatabaseType : 設定資料庫型態
 func (this *Orm) setDatabaseType(config DatabaseInterface) error {
 	var err error
+	logger.Log.Debug("set database type = ", config.GetType())
 	switch config.GetType() {
 	case "mysql":
 		var connectStr = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true",
 			config.GetUsername(), config.GetPassword(), config.GetURL(), config.GetPort(), config.GetName())
+		logger.Log.Debug("connection string = ", connectStr)
 		this.db, err = gorm.Open(config.GetType(), connectStr)
 		if err != nil {
-			log.Println(err)
+			logger.Log.Error("connect to database error", err)
 			return err
 		}
 		break
 	case "postgres":
 		var connectStr = fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 			config.GetURL(), config.GetPort(), config.GetName(), config.GetUsername(), config.GetPassword())
+		logger.Log.Debug("connection string = ", connectStr)
 		this.db, err = gorm.Open(config.GetType(), connectStr)
 		if err != nil {
+			logger.Log.Error("connect to database error", err)
 			return err
 		}
 		break
@@ -134,8 +145,11 @@ func (this *Orm) setDatabaseType(config DatabaseInterface) error {
 
 // 設定資料庫組態
 func (this *Orm) setDbConfig(config DatabaseInterface) {
+	logger.Log.Debug("set max idle connections", config.GetMaxIdelConns())
 	this.GetInstance().DB().SetMaxIdleConns(config.GetMaxIdelConns())
+	logger.Log.Debug("set max open connections", config.GetMaxOpenConns())
 	this.GetInstance().DB().SetMaxOpenConns(config.GetMaxOpenConns())
+	logger.Log.Debug("set connection max life time", config.GetMaxLifeTime())
 	this.GetInstance().DB().SetConnMaxLifetime(time.Duration(config.GetMaxLifeTime()))
 }
 
@@ -148,6 +162,7 @@ func (this *Orm) setVersion(version *Version) (error) {
 	)
 
 	if err = tx.Model(&Version{}).Find(&vs).Error; err != nil {
+		logger.Log.Debug("not found version table")
 		if err = this.CheckTable(false, &version); err != nil {
 			fmt.Println(err)
 			return err
@@ -160,6 +175,7 @@ func (this *Orm) setVersion(version *Version) (error) {
 		}
 		return nil
 	} else if len(vs) < 1 {
+		logger.Log.Debug("not found version record")
 		if err := tx.Model(&Version{}).Create(&version).Error; err != nil {
 			tx.Rollback()
 			return err
@@ -182,6 +198,7 @@ func (this *Orm) Upgrade() error {
 		檢查是否可以更新
 	 */
 	if err = tx.Model(&Version{}).Find(&vs).Error; err != nil {
+		logger.Log.Debug("not found version table")
 		if err = this.CheckTable(false, &version); err != nil {
 			fmt.Println(err)
 			return err
@@ -194,6 +211,7 @@ func (this *Orm) Upgrade() error {
 		}
 		return nil
 	} else if len(vs) < 1 {
+		logger.Log.Debug("not found version record")
 		if err := tx.Model(&Version{}).Create(&version).Error; err != nil {
 			tx.Rollback()
 			return err
@@ -202,8 +220,8 @@ func (this *Orm) Upgrade() error {
 		}
 		return nil
 	}
-
 	var oldVersion = vs[0]
+	logger.Log.Debug("found version", oldVersion.GetVersion())
 	if oldVersion.GetVersion() != version.GetVersion() {
 		var (
 			ov  int
@@ -212,39 +230,48 @@ func (this *Orm) Upgrade() error {
 		)
 		//判斷版本是否高於現有版本
 		if ov, err = this.transformVersion(oldVersion.GetVersion()); err != nil {
+			logger.Log.Error("transform old version error", err)
 			return err
 		}
 		if nv, err = this.transformVersion(version.GetVersion()); err != nil {
+			logger.Log.Error("transform new version error", err)
 			return err
 		}
 		if nv > ov {
+			logger.Log.Debug("can upgrade")
 			if sql, err = this.loadSQLFile(oldVersion.GetVersion()); err != nil {
 				return err
 			}
 			/*
 				執行版本更新 SQL
 			 */
+			logger.Log.Debug("start execute upgrade sql")
 			var tx1 = this.GetInstance().Begin()
 			if err := tx1.Exec(string(sql)).Error; err != nil {
+				logger.Log.Error("upgrade sql execute failed", err)
 				tx1.Rollback()
 				return err
 			} else {
+				logger.Log.Debug("upgrade sql execute success")
 				tx1.Commit()
 			}
 
 			/*
 				執行 Version Table 更新
 			 */
-			 var (
-			 	data map[string]interface{} = map[string]interface{}{
+			var (
+				data map[string]interface{} = map[string]interface{}{
 					"version": version.GetVersion(),
 				}
-			 )
+			)
+			logger.Log.Debug("start upgrade version record")
 			var tx2 = this.GetInstance().Begin()
 			if err := tx2.Table(this.GetTableName(version)).Update(data).Error; err != nil {
+				logger.Log.Error("upgrade version record failed", err)
 				tx2.Rollback()
 				return err
 			} else {
+				logger.Log.Debug("upgrade version record success")
 				tx2.Commit()
 			}
 			return nil
@@ -258,10 +285,12 @@ func (this *Orm) Upgrade() error {
 //loadSQLFile 讀取更新的 SQL 檔案
 func (this *Orm) loadSQLFile(version string) ([]byte, error) {
 	var (
-		sql []byte
-		err error
+		file = version + ".sql"
+		sql  []byte
+		err  error
 	)
-	if sql, err = ioutil.ReadFile(this.config.GetUpgradeFilePath() + version + ".sql"); err != nil {
+	logger.Log.Debug("read sql file", file)
+	if sql, err = ioutil.ReadFile(this.config.GetUpgradeFilePath() + file); err != nil {
 		return nil, err
 	}
 	return sql, nil

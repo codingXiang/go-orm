@@ -1,6 +1,7 @@
 package main
 
 import (
+	"10.40.42.38/BP05G0/go-logger"
 	"10.40.42.38/BP05G0/go-orm"
 	"10.40.42.38/BP05G0/go-orm/model"
 	"fmt"
@@ -10,9 +11,16 @@ import (
 )
 
 func main() {
+
+	logger.Log = logger.NewLogger(logger.Logger{
+		Level: "debug",
+		Format: "json",
+	})
+
 	/*
 		設定讀取並轉換 yaml 檔案
 	 */
+	var config *model.Database
 	file, err := ioutil.ReadFile("/Users/user/go/src/pkg/orm/example/config.yaml")
 
 	if err != nil {
