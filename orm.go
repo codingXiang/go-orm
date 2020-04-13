@@ -31,13 +31,17 @@ type (
 	}
 )
 
+var (
+	DatabaseORM OrmInterface
+)
+
 //NewOrm : 新增 ORM 實例
-func NewOrm(config DatabaseInterface) OrmInterface {
+func NewOrm(config DatabaseInterface) {
 	var o = &Orm{
 		config: config,
 		Error:  nil,
 	}
-	return o.Init(config)
+	DatabaseORM = o.Init(config)
 }
 
 //Init : 初始化 ORM
@@ -278,6 +282,7 @@ func (this *Orm) Upgrade() error {
 		}
 		return nil
 	}
+	logger.Log.Debug("can not upgrade")
 
 	return nil
 }
