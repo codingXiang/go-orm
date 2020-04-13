@@ -1,4 +1,4 @@
-module 10.40.42.38/BP05G0/go-orm
+module 10.40.42.38/BP05G0/operation-platform/go-orm
 
 go 1.13
 
