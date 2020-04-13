@@ -17,28 +17,12 @@ func main() {
 		Format: "json",
 	})
 
-	/*
-		設定讀取並轉換 yaml 檔案
-	 */
-	var config *model.Database
-	file, err := ioutil.ReadFile("/Users/user/go/src/pkg/orm/example/config.yaml")
-
-	if err != nil {
-		log.Fatalln("讀取 yaml 檔發生錯誤", err)
-	}
-
-	fmt.Println(string(file))
-
-	err = yaml.Unmarshal(file, &config)
-	if err != nil {
-		log.Fatalln("轉換 yaml 檔發生錯誤", err)
-	}
-	var ORM = orm.NewOrm(GetConfig(new(model.Database)))
-	ORM.Upgrade()
-	ORM.GetInstance()
+	orm.NewOrm(GetDatqbaseConfig(new(model.Database)))
+	orm.DatabaseORM.Upgrade()
+	orm.DatabaseORM.GetInstance()
 }
 
-func GetConfig(config *model.Database) model.DatabaseInterface {
+func GetDatqbaseConfig(config *model.Database) model.DatabaseInterface {
 	file, err := ioutil.ReadFile("/Users/user/go/src/pkg/orm/example/config.yaml")
 
 	if err != nil {
