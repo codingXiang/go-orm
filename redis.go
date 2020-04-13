@@ -1,9 +1,9 @@
 package orm
 
 import (
-	"10.40.42.38/BP05G0/go-logger"
-	"10.40.42.38/BP05G0/go-orm/model"
 	"fmt"
+	"github.com/codingXiang/go-logger"
+	"github.com/codingXiang/go-orm/model"
 	"github.com/go-redis/redis"
 	"time"
 )
