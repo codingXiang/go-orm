@@ -27,7 +27,7 @@ var (
 )
 
 //NewRedisClient : 建立 Redis Client 實例
-func NewRedisClient(config *model.Redis) {
+func NewRedisClient(config model.RedisInterface) {
 	var (
 		rc  = &RedisClient{}
 		err error
@@ -36,9 +36,9 @@ func NewRedisClient(config *model.Redis) {
 		logger.Log.Error("redis database variable error.")
 	}
 	rc.client = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", config.URL, config.Port),
-		Password: config.Password,
-		DB:       config.DB,
+		Addr:     fmt.Sprintf("%s:%d", config.GetURL(), config.GetPort()),
+		Password: config.GetPassword(),
+		DB:       config.GetDB(),
 	})
 	logger.Log.Info("check redis ...")
 	_, err = rc.GetInfo()
