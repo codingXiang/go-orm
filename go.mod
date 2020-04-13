@@ -1,4 +1,4 @@
-module github.com/codingxiang/go-orm
+module github.com/codingXiang/go-orm
 
 go 1.13
 
