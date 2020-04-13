@@ -1,0 +1,14 @@
+url: '127.0.0.1'
+port: 3307
+name: 'test'
+username: 'root'
+password: 'a12345'
+type: 'mysql'
+tablePrefix: ""
+maxOpenConns: 1000
+maxIdleConns: 1000
+maxLifeTime: 5
+logMode: true
+upgradeFilePath: '/Users/user/go/src/pkg/orm/sql/'
+version:
+  version: "1.0.2"
