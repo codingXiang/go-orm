@@ -27,8 +27,8 @@ var (
 	RedisORM RedisClientInterface
 )
 
-func InterfaceToRedis(data map[string]interface{}) model.Redis {
-	var result = model.Redis{}
+func InterfaceToRedis(data map[string]interface{}) model.RedisInterface {
+	var result = &model.Redis{}
 	if jsonStr, err := json.Marshal(data); err == nil {
 		json.Unmarshal(jsonStr, &result)
 	}

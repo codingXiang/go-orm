@@ -36,8 +36,8 @@ var (
 	DatabaseORM OrmInterface
 )
 
-func InterfaceToDatabase(data map[string]interface{}) Database {
-	var result = Database{}
+func InterfaceToDatabase(data map[string]interface{}) DatabaseInterface {
+	var result = &Database{}
 	if jsonStr, err := json.Marshal(data); err == nil {
 		json.Unmarshal(jsonStr, &result)
 	}
