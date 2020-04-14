@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/codingXiang/go-logger"
 	. "github.com/codingXiang/go-orm/model"
@@ -34,6 +35,14 @@ type (
 var (
 	DatabaseORM OrmInterface
 )
+
+func InterfaceToDatabase(data map[string]interface{}) Database {
+	var result = Database{}
+	if jsonStr, err := json.Marshal(data); err == nil {
+		json.Unmarshal(jsonStr, &result)
+	}
+	return result
+}
 
 //NewOrm : 新增 ORM 實例
 func NewOrm(config DatabaseInterface) {

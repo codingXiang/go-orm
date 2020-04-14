@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/codingXiang/go-logger"
 	"github.com/codingXiang/go-orm/model"
@@ -25,6 +26,14 @@ type (
 var (
 	RedisORM RedisClientInterface
 )
+
+func InterfaceToRedis(data map[string]interface{}) model.Redis {
+	var result = model.Redis{}
+	if jsonStr, err := json.Marshal(data); err == nil {
+		json.Unmarshal(jsonStr, &result)
+	}
+	return result
+}
 
 //NewRedisClient : 建立 Redis Client 實例
 func NewRedisClient(config model.RedisInterface) {
