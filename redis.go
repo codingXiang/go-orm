@@ -3,9 +3,11 @@ package orm
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/codingXiang/configer"
 	"github.com/codingXiang/go-logger"
 	"github.com/codingXiang/go-orm/model"
 	"github.com/go-redis/redis"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -19,7 +21,8 @@ type (
 	}
 	//RedisClient : Redis客戶端
 	RedisClient struct {
-		client *redis.Client
+		client     *redis.Client
+		configName string
 	}
 )
 
@@ -36,26 +39,46 @@ func InterfaceToRedis(data interface{}) model.RedisInterface {
 }
 
 //NewRedisClient : 建立 Redis Client 實例
-func NewRedisClient(config model.RedisInterface) {
+func NewRedisClient(configName string, core configer.CoreInterface) (*RedisClient, error) {
 	var (
-		rc  = &RedisClient{}
-		err error
+		rc = &RedisClient{
+			configName: configName,
+		}
 	)
-	if err != nil {
-		logger.Log.Error("redis database variable error.")
+
+	if configer.Config == nil {
+		//初始化 configer
+		configer.Config = configer.NewConfiger()
 	}
-	rc.client = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", config.GetURL(), config.GetPort()),
-		Password: config.GetPassword(),
-		DB:       config.GetDB(),
-	})
-	logger.Log.Info("check redis ...")
-	_, err = rc.GetInfo()
-	if err != nil {
-		logger.Log.Error("redis connect error")
+
+	//加入 config
+	configer.Config.AddCore(rc.configName, core)
+	//讀取 config
+	if data, err := configer.Config.GetCore(rc.configName).ReadConfig(nil); err == nil {
+		var (
+			url      = data.GetString("redis.url")
+			port     = data.GetInt("redis.port")
+			password = data.GetString("redis.password")
+			db       = data.GetInt("redis.db")
+		)
+		rc.client = redis.NewClient(&redis.Options{
+			Addr:     fmt.Sprintf("%s:%d", url, port),
+			Password: password,
+			DB:       db,
+		})
+		logger.Log.Info("check redis ...")
+		_, err = rc.GetInfo()
+		if err != nil {
+			errMsg := "redis connect error"
+			logger.Log.Error(errMsg)
+			return nil, errors.New(errMsg)
+		} else {
+			logger.Log.Info("redis connect success")
+			return rc, nil
+		}
+	} else {
+		return nil, err
 	}
-	logger.Log.Info("complete")
-	RedisORM = rc
 }
 
 //GetRedisInfo 取得 Redis 資訊

@@ -1,14 +1,15 @@
 package orm
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/codingXiang/configer"
 	"github.com/codingXiang/go-logger"
 	. "github.com/codingXiang/go-orm/model"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"    // mysql
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgresql
-	"io/ioutil"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"strconv"
 	"strings"
 	"time"
@@ -17,18 +18,17 @@ import (
 //Orm
 type (
 	OrmInterface interface {
-		Init(config DatabaseInterface) OrmInterface
 		CloseDB()
 		GetTableName(value interface{}) string
 		CheckTable(migrate bool, value interface{}) error
 		GetInstance() *gorm.DB
 		SetInstance(db *gorm.DB)
-		Upgrade() error
+		Upgrade(tables ...interface{}) error
 	}
 	Orm struct {
-		db     *gorm.DB
-		config DatabaseInterface
-		Error  error
+		db         *gorm.DB
+		configName string
+		version    *Version
 	}
 )
 
@@ -36,52 +36,63 @@ var (
 	DatabaseORM OrmInterface
 )
 
-func InterfaceToDatabase(data interface{}) DatabaseInterface {
-	var result = &Database{}
-	if jsonStr, err := json.Marshal(data); err == nil {
-		json.Unmarshal(jsonStr, &result)
-	}
-	return result
-}
-
 //NewOrm : 新增 ORM 實例
-func NewOrm(config DatabaseInterface) {
+func NewOrm(configName string, core configer.CoreInterface) (OrmInterface, error) {
 	var o = &Orm{
-		config: config,
-		Error:  nil,
+		configName: configName,
 	}
-	DatabaseORM = o.Init(config)
+	return o.init(core)
 }
 
-//Init : 初始化 ORM
-func (this *Orm) Init(config DatabaseInterface) OrmInterface {
-	//設定資料庫型態 (MySQL, PostgreSQL) 與連線資訊
-	logger.Log.Debug("setup database type")
-	this.Error = this.setDatabaseType(config)
+//init : 初始化 ORM
+func (this *Orm) init(core configer.CoreInterface) (OrmInterface, error) {
+	var (
+		data *viper.Viper
+		err  error
+	)
+	if configer.Config == nil {
+		//初始化 configer
+		configer.Config = configer.NewConfiger()
+	}
+	//加入 config
+	configer.Config.AddCore(this.configName, core)
+	//讀取 config
+	if data, err = configer.Config.GetCore(this.configName).ReadConfig(nil); err == nil {
+		var (
+			logMode     = data.GetBool("database.logMode")
+			tablePrefix = data.GetString("database.tablePrefix")
+			version     = data.GetString("database.version")
+		)
+		//設定資料庫型態 (MySQL, PostgreSQL) 與連線資訊
+		logger.Log.Debug("setup database type")
+		err = this.setDatabaseType(data)
 
-	//設定資料庫參數
-	logger.Log.Debug("setup database config")
-	this.setDbConfig(config)
+		//設定資料庫參數
+		logger.Log.Debug("setup database config")
+		this.setDbConfig(data)
 
-	//設定是否開啟 Log 模式
-	logger.Log.Debug("setup log mode =", config.GetLogMode())
-	if config.GetLogMode() {
-		this.GetInstance().LogMode(true)
-		this.SetInstance(this.GetInstance().Debug())
-	} else {
-		this.GetInstance().LogMode(false)
+		//設定是否開啟 Log 模式
+		logger.Log.Debug("setup log mode =", logMode)
+		if logMode {
+			this.GetInstance().LogMode(true)
+			this.SetInstance(this.GetInstance().Debug())
+		} else {
+			this.GetInstance().LogMode(false)
+		}
+
+		//設定預設 Table 前綴字
+		logger.Log.Debug("setup table name prefix", tablePrefix)
+		gorm.DefaultTableNameHandler = func(db *gorm.DB, defaultTableName string) string {
+			return tablePrefix + defaultTableName
+		}
+
+		//設定版本控制 Schema
+		this.version = &Version{Version: version}
+		logger.Log.Debug("setup version", this.version.GetVersion())
+		err = this.setVersion(this.version)
 	}
 
-	//設定預設 Table 前綴字
-	logger.Log.Debug("setup table name prefix", config.GetTablePrefix())
-	gorm.DefaultTableNameHandler = func(db *gorm.DB, defaultTableName string) string {
-		return config.GetTablePrefix() + defaultTableName
-	}
-
-	//設定版本控制 Schema
-	logger.Log.Debug("setup version")
-	this.Error = this.setVersion(config.GetVersion())
-	return this
+	return this, err
 }
 
 func (this *Orm) CloseDB() {
@@ -128,15 +139,23 @@ func (this *Orm) SetInstance(db *gorm.DB) {
 }
 
 //setDatabaseType : 設定資料庫型態
-func (this *Orm) setDatabaseType(config DatabaseInterface) error {
-	var err error
-	logger.Log.Debug("set database type = ", config.GetType())
-	switch config.GetType() {
+func (this *Orm) setDatabaseType(config *viper.Viper) error {
+	var (
+		err      error
+		url      = config.GetString("database.url")
+		port     = config.GetInt("database.port")
+		dbName   = config.GetString("database.name")
+		username = config.GetString("database.username")
+		password = config.GetString("database.password")
+		_type    = config.GetString("database.type")
+	)
+	logger.Log.Debug("set database type = ", _type)
+	switch _type {
 	case "mysql":
 		var connectStr = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true",
-			config.GetUsername(), config.GetPassword(), config.GetURL(), config.GetPort(), config.GetName())
+			username, password, url, port, dbName)
 		logger.Log.Debug("connection string = ", connectStr)
-		this.db, err = gorm.Open(config.GetType(), connectStr)
+		this.db, err = gorm.Open(_type, connectStr)
 		if err != nil {
 			logger.Log.Error("connect to database error", err)
 			return err
@@ -144,9 +163,9 @@ func (this *Orm) setDatabaseType(config DatabaseInterface) error {
 		break
 	case "postgres":
 		var connectStr = fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
-			config.GetURL(), config.GetPort(), config.GetName(), config.GetUsername(), config.GetPassword())
+			url, port, dbName, username, password)
 		logger.Log.Debug("connection string = ", connectStr)
-		this.db, err = gorm.Open(config.GetType(), connectStr)
+		this.db, err = gorm.Open(_type, connectStr)
 		if err != nil {
 			logger.Log.Error("connect to database error", err)
 			return err
@@ -157,13 +176,18 @@ func (this *Orm) setDatabaseType(config DatabaseInterface) error {
 }
 
 // 設定資料庫組態
-func (this *Orm) setDbConfig(config DatabaseInterface) {
-	logger.Log.Debug("set max idle connections", config.GetMaxIdelConns())
-	this.GetInstance().DB().SetMaxIdleConns(config.GetMaxIdelConns())
-	logger.Log.Debug("set max open connections", config.GetMaxOpenConns())
-	this.GetInstance().DB().SetMaxOpenConns(config.GetMaxOpenConns())
-	logger.Log.Debug("set connection max life time", config.GetMaxLifeTime())
-	this.GetInstance().DB().SetConnMaxLifetime(time.Duration(config.GetMaxLifeTime()))
+func (this *Orm) setDbConfig(config *viper.Viper) {
+	var (
+		maxOpenConns = config.GetInt("database.maxOpenConns")
+		maxIdleConns = config.GetInt("database.maxIdleConns")
+		maxLifeTime  = config.GetInt("database.maxLifeTime")
+	)
+	logger.Log.Debug("set max idle connections", maxIdleConns)
+	this.GetInstance().DB().SetMaxIdleConns(maxIdleConns)
+	logger.Log.Debug("set max open connections", maxOpenConns)
+	this.GetInstance().DB().SetMaxOpenConns(maxOpenConns)
+	logger.Log.Debug("set connection max life time", maxLifeTime)
+	this.GetInstance().DB().SetConnMaxLifetime(time.Duration(maxLifeTime))
 }
 
 //設定資料庫版本
@@ -200,11 +224,11 @@ func (this *Orm) setVersion(version *Version) (error) {
 	return err
 }
 
-func (this *Orm) Upgrade() error {
+func (this *Orm) Upgrade(tables ...interface{}) error {
 	var (
 		err     error
 		vs      []*Version
-		version = this.config.GetVersion()
+		version = this.version.GetVersion()
 		tx      = this.GetInstance().Begin()
 	)
 	/*
@@ -213,7 +237,6 @@ func (this *Orm) Upgrade() error {
 	if err = tx.Model(&Version{}).Find(&vs).Error; err != nil {
 		logger.Log.Debug("not found version table")
 		if err = this.CheckTable(false, &version); err != nil {
-			fmt.Println(err)
 			return err
 		}
 		if err := tx.Model(&Version{}).Create(&version).Error; err != nil {
@@ -222,7 +245,6 @@ func (this *Orm) Upgrade() error {
 		} else {
 			tx.Commit()
 		}
-		return nil
 	} else if len(vs) < 1 {
 		logger.Log.Debug("not found version record")
 		if err := tx.Model(&Version{}).Create(&version).Error; err != nil {
@@ -231,84 +253,50 @@ func (this *Orm) Upgrade() error {
 		} else {
 			tx.Commit()
 		}
-		return nil
 	}
 	var oldVersion = vs[0]
-	logger.Log.Debug("found version", oldVersion.GetVersion())
-	if oldVersion.GetVersion() != version.GetVersion() {
+	logger.Log.Debug("found old version", oldVersion.GetVersion())
+	if oldVersion.GetVersion() != this.version.GetVersion() {
 		var (
-			ov  int
-			nv  int
-			sql []byte
+			ov int
+			nv int
 		)
 		//判斷版本是否高於現有版本
 		if ov, err = this.transformVersion(oldVersion.GetVersion()); err != nil {
 			logger.Log.Error("transform old version error", err)
 			return err
 		}
-		if nv, err = this.transformVersion(version.GetVersion()); err != nil {
+		if nv, err = this.transformVersion(this.version.GetVersion()); err != nil {
 			logger.Log.Error("transform new version error", err)
 			return err
 		}
 		if nv > ov {
-			logger.Log.Debug("can upgrade")
-			if sql, err = this.loadSQLFile(oldVersion.GetVersion()); err != nil {
-				return err
-			}
-			/*
-				執行版本更新 SQL
-			 */
-			logger.Log.Debug("start execute upgrade sql")
-			var tx1 = this.GetInstance().Begin()
-			if err := tx1.Exec(string(sql)).Error; err != nil {
-				logger.Log.Error("upgrade sql execute failed", err)
-				tx1.Rollback()
-				return err
-			} else {
-				logger.Log.Debug("upgrade sql execute success")
-				tx1.Commit()
-			}
-
-			/*
-				執行 Version Table 更新
-			 */
-			var (
-				data map[string]interface{} = map[string]interface{}{
-					"version": version.GetVersion(),
-				}
-			)
-			logger.Log.Debug("start upgrade version record")
-			var tx2 = this.GetInstance().Begin()
-			if err := tx2.Table(this.GetTableName(version)).Update(data).Error; err != nil {
-				logger.Log.Error("upgrade version record failed", err)
-				tx2.Rollback()
-				return err
-			} else {
-				logger.Log.Debug("upgrade version record success")
-				tx2.Commit()
+			logger.Log.Debug("v" + this.version.GetVersion() + " is higher than v" + oldVersion.GetVersion())
+			for _, table := range tables {
+				this.CheckTable(true, table)
 			}
 			return nil
+		} else {
+			return errors.New("v" + this.version.GetVersion() + " is not higher than v" + oldVersion.GetVersion())
 		}
-		return nil
+	} else {
+		return errors.New("v" + this.version.GetVersion() + " is the newest version")
 	}
-	logger.Log.Debug("can not upgrade")
-
-	return nil
 }
 
-//loadSQLFile 讀取更新的 SQL 檔案
-func (this *Orm) loadSQLFile(version string) ([]byte, error) {
-	var (
-		file = version + ".sql"
-		sql  []byte
-		err  error
-	)
-	logger.Log.Debug("read sql file", file)
-	if sql, err = ioutil.ReadFile(this.config.GetUpgradeFilePath() + file); err != nil {
-		return nil, err
-	}
-	return sql, nil
-}
+////loadSQLFile 讀取更新的 SQL 檔案
+//func (this *Orm) loadSQLFile(version string) ([]byte, error) {
+//	var (
+//		file = version + ".sql"
+//		sql  []byte
+//		err  error
+//	)
+//	logger.Log.Debug("read sql file", file)
+//	if sql, err = ioutil.ReadFile(this.config.GetUpgradeFilePath() + file); err != nil {
+//		return nil, err
+//	}
+//	return sql, nil
+//}
 
 //translformVersion 轉換版本權重
 func (this *Orm) transformVersion(version string) (int, error) {

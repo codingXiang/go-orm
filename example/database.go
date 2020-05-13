@@ -1,37 +1,28 @@
 package main
 
 import (
-	"fmt"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"log"
+	"github.com/codingXiang/configer"
+	"github.com/codingXiang/go-logger"
+	"github.com/codingXiang/go-orm"
 )
 
-func main() {
-
-	logger.Log = logger.NewLogger(logger.Logger{
-		Level: "debug",
-		Format: "json",
-	})
-
-	orm.NewOrm(GetDatqbaseConfig(new(model.Database)))
-	orm.DatabaseORM.Upgrade()
-	orm.DatabaseORM.GetInstance()
+type Test struct {
+	ID   int
+	Name string
 }
 
-func GetDatqbaseConfig(config *model.Database) model.DatabaseInterface {
-	file, err := ioutil.ReadFile("/Users/user/go/src/pkg/orm/example/config.yaml")
-
-	if err != nil {
-		log.Fatalln("讀取 yaml 檔發生錯誤", err)
+func main() {
+	var err error
+	logger.Log = logger.NewLogger(logger.Logger{
+		Level:  "debug",
+		Format: "json",
+	})
+	databaseConfig := configer.NewConfigerCore("yaml", "config", "./example")
+	if orm.DatabaseORM, err = orm.NewOrm("database", databaseConfig); err != nil {
+		panic(err)
 	}
-
-	fmt.Println(string(file))
-
-	err = yaml.Unmarshal(file, &config)
-	if err != nil {
-		log.Fatalln("轉換 yaml 檔發生錯誤", err)
+	if err = orm.DatabaseORM.Upgrade(&Test{}); err != nil {
+		panic(err.Error())
 	}
-
-	return config
+	orm.DatabaseORM.GetInstance()
 }
