@@ -13,16 +13,21 @@ type Test struct {
 
 func main() {
 	var err error
+	//初始化 logger
 	logger.Log = logger.NewLogger(logger.Logger{
 		Level:  "debug",
 		Format: "json",
 	})
+	//設定 configer
 	databaseConfig := configer.NewConfigerCore("yaml", "config", "./example")
+	//建立 orm instance
 	if orm.DatabaseORM, err = orm.NewOrm("database", databaseConfig); err != nil {
 		panic(err)
 	}
+	//取得實例
+	orm.DatabaseORM.GetInstance()
+	//版本更新
 	if err = orm.DatabaseORM.Upgrade(&Test{}); err != nil {
 		panic(err.Error())
 	}
-	orm.DatabaseORM.GetInstance()
 }
