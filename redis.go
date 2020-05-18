@@ -66,7 +66,7 @@ func NewRedisClient(configName string, core configer.CoreInterface) (*RedisClien
 			Password: password,
 			DB:       db,
 		})
-		logger.Log.Info("check redis ...")
+		logger.Log.Debug("check redis ...", rc.client)
 		_, err = rc.GetInfo()
 		if err != nil {
 			errMsg := "redis connect error"

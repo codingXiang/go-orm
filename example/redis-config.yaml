@@ -1,5 +1,5 @@
 redis:
-  url: '127.0.0.1'
+  url: '10.40.41.128'
   port: 6379
   password: 'a12345'
   db: 0
