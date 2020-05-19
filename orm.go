@@ -285,6 +285,7 @@ func (this *Orm) Upgrade(tables ...interface{}) error {
 		for _, table := range tables {
 			this.CheckTable(true, table)
 		}
+		return nil
 	} else {
 		return err
 	}
