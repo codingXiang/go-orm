@@ -191,7 +191,7 @@ func (this *Orm) setDbConfig(config *viper.Viper) {
 }
 
 //設定資料庫版本
-func (this *Orm) setVersion(version *Version) (error) {
+func (this *Orm) setVersion(version *Version) error {
 	var (
 		err error
 		vs  []*Version
@@ -224,7 +224,7 @@ func (this *Orm) setVersion(version *Version) (error) {
 	return err
 }
 
-func (this *Orm) Upgrade(tables ...interface{}) error {
+func (this *Orm) CheckVersion() error {
 	var (
 		err     error
 		vs      []*Version
@@ -233,7 +233,7 @@ func (this *Orm) Upgrade(tables ...interface{}) error {
 	)
 	/*
 		檢查是否可以更新
-	 */
+	*/
 	if err = tx.Model(&Version{}).Find(&vs).Error; err != nil {
 		logger.Log.Debug("not found version table")
 		if err = this.CheckTable(false, &version); err != nil {
@@ -271,16 +271,22 @@ func (this *Orm) Upgrade(tables ...interface{}) error {
 			return err
 		}
 		if nv > ov {
-			logger.Log.Debug("v" + this.version.GetVersion() + " is higher than v" + oldVersion.GetVersion())
-			for _, table := range tables {
-				this.CheckTable(true, table)
-			}
 			return nil
 		} else {
 			return errors.New("v" + this.version.GetVersion() + " is not higher than v" + oldVersion.GetVersion())
 		}
 	} else {
 		return errors.New("v" + this.version.GetVersion() + " is the newest version")
+	}
+}
+
+func (this *Orm) Upgrade(tables ...interface{}) error {
+	if err := this.CheckVersion(); err == nil {
+		for _, table := range tables {
+			this.CheckTable(true, table)
+		}
+	} else {
+		return err
 	}
 }
 
