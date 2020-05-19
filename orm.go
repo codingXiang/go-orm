@@ -23,6 +23,7 @@ type (
 		CheckTable(migrate bool, value interface{}) error
 		GetInstance() *gorm.DB
 		SetInstance(db *gorm.DB)
+		CheckVersion() error
 		Upgrade(tables ...interface{}) error
 	}
 	Orm struct {
@@ -283,7 +284,9 @@ func (this *Orm) CheckVersion() error {
 func (this *Orm) Upgrade(tables ...interface{}) error {
 	if err := this.CheckVersion(); err == nil {
 		for _, table := range tables {
-			this.CheckTable(true, table)
+			if err := this.CheckTable(true, table); err != nil {
+				return err
+			}
 		}
 		return nil
 	} else {
