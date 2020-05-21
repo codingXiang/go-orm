@@ -1,7 +1,7 @@
 database:
   url: '127.0.0.1'
   port: 3307
-  name: 'test'
+  name: ''
   username: 'root'
   password: 'a12345'
   type: 'mysql'

@@ -113,7 +113,7 @@ func (this *Orm) CheckTable(migrate bool, value interface{}) error {
 		tx  = this.GetInstance().Begin()
 	)
 	if !this.GetInstance().HasTable(value) {
-		if err = tx.CreateTable(value).Error; err != nil {
+		if err = tx.Set("gorm:table_options", "ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;").CreateTable(value).Error; err != nil {
 			fmt.Println(err)
 			tx.Rollback()
 			return err
@@ -121,7 +121,7 @@ func (this *Orm) CheckTable(migrate bool, value interface{}) error {
 		tx.Commit()
 	} else {
 		if migrate {
-			if err = tx.AutoMigrate(value).Error; err != nil {
+			if err = tx.Set("gorm:table_options", "ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1;").AutoMigrate(value).Error; err != nil {
 				tx.Rollback()
 				return err
 			}

@@ -24,10 +24,10 @@ func main() {
 	if orm.DatabaseORM, err = orm.NewOrm("database", databaseConfig); err != nil {
 		panic(err)
 	}
-	//取得實例
-	orm.DatabaseORM.GetInstance()
-	//版本更新
-	if err = orm.DatabaseORM.Upgrade(&Test{}); err != nil {
-		panic(err.Error())
-	}
+	////取得實例
+	//orm.DatabaseORM.GetInstance()
+	////版本更新
+	//if err = orm.DatabaseORM.Upgrade(&Test{}); err != nil {
+	//	panic(err.Error())
+	//}
 }

@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1 // indirect
 	github.com/codingXiang/configer v1.0.2-0.20200513072245-ec8070de9a16
+	github.com/codingXiang/cxgateway v1.0.7-0.20200519093115-6d6c47ad8a9d // indirect
 	github.com/codingXiang/go-logger v1.0.0
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
