@@ -2,7 +2,7 @@
 ## 如何使用
 ### 載入模組
 ```shell
-go get -u --insecure 10.40.42.38/BP05G0/go-orm
+go get -u github.com/codingXiang/go-orm
 ```
 
 ### 設定 ORM 實例
