@@ -7,7 +7,6 @@ import (
 	"github.com/codingXiang/go-logger"
 	"github.com/codingXiang/go-orm/model"
 	"github.com/go-redis/redis"
-	"github.com/pkg/errors"
 	"time"
 )
 
@@ -22,6 +21,7 @@ type (
 	//RedisClient : Redis客戶端
 	RedisClient struct {
 		client     *redis.Client
+		prefix     string
 		configName string
 	}
 )
@@ -60,18 +60,24 @@ func NewRedisClient(configName string, core configer.CoreInterface) (*RedisClien
 			port     = data.GetInt("redis.port")
 			password = data.GetString("redis.password")
 			db       = data.GetInt("redis.db")
+			prefix   = data.GetString("redis.prefix")
 		)
-		rc.client = redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%d", url, port),
-			Password: password,
-			DB:       db,
-		})
+		//設定連線資訊
+		option := &redis.Options{
+			Addr: fmt.Sprintf("%s:%d", url, port),
+			DB:   db,
+		}
+		rc.prefix = prefix
+		if password != "" {
+			option.Password = password
+		}
+		rc.client = redis.NewClient(option)
 		logger.Log.Debug("check redis ...", rc.client)
 		_, err = rc.GetInfo()
 		if err != nil {
 			errMsg := "redis connect error"
-			logger.Log.Error(errMsg)
-			return nil, errors.New(errMsg)
+			logger.Log.Error(errMsg, err)
+			return nil, err
 		} else {
 			logger.Log.Info("redis connect success")
 			return rc, nil
@@ -88,17 +94,17 @@ func (r *RedisClient) GetInfo() (string, error) {
 
 //SetKeyValueWithExpire : 設定 Key 與 Value
 func (r *RedisClient) SetKeyValue(key string, value interface{}, expiration time.Duration) error {
-	err := r.client.Set(key, value, expiration).Err()
+	err := r.client.Set(r.prefix+key, value, expiration).Err()
 	return err
 }
 
 //GetValue : 取得 Key 的 Value
 func (r *RedisClient) GetValue(key string) (string, error) {
-	val := r.client.Get(key)
+	val := r.client.Get(r.prefix+key)
 	return val.Val(), val.Err()
 }
 
 //RemoveKey : 刪除 Key
 func (r *RedisClient) RemoveKey(key string) error {
-	return r.client.Del(key).Err()
+	return r.client.Del(r.prefix+key).Err()
 }
