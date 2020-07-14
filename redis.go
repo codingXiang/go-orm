@@ -17,6 +17,8 @@ type (
 		SetKeyValue(key string, value interface{}, expiration time.Duration) error
 		GetValue(key string) (string, error)
 		RemoveKey(key string) error
+		Publish(channel string, message interface{}) error
+		Subscribe(channel string) *redis.PubSub
 	}
 	//RedisClient : Redis客戶端
 	RedisClient struct {
@@ -100,11 +102,21 @@ func (r *RedisClient) SetKeyValue(key string, value interface{}, expiration time
 
 //GetValue : 取得 Key 的 Value
 func (r *RedisClient) GetValue(key string) (string, error) {
-	val := r.client.Get(r.prefix+key)
+	val := r.client.Get(r.prefix + key)
 	return val.Val(), val.Err()
 }
 
 //RemoveKey : 刪除 Key
 func (r *RedisClient) RemoveKey(key string) error {
-	return r.client.Del(r.prefix+key).Err()
+	return r.client.Del(r.prefix + key).Err()
+}
+
+//Publish : 發佈
+func (r *RedisClient) Publish(channel string, message interface{}) error {
+	return r.client.Publish(channel, message).Err()
+}
+
+//Subscribe : 訂閱
+func (r *RedisClient) Subscribe(channel string) *redis.PubSub {
+	return r.client.Subscribe(channel)
 }
