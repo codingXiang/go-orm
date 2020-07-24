@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/codingXiang/configer"
 	"github.com/codingXiang/go-logger"
 	"github.com/codingXiang/go-orm"
@@ -23,6 +24,8 @@ func main() {
 	//建立 orm instance
 	if orm.DatabaseORM, err = orm.NewOrm("database", databaseConfig); err != nil {
 		panic(err)
+	} else {
+		fmt.Println(orm.DatabaseORM.ShowVersion())
 	}
 	////取得實例
 	//orm.DatabaseORM.GetInstance()

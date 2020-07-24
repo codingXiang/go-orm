@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/codingXiang/configer"
 	"github.com/codingXiang/go-logger"
 	"github.com/codingXiang/go-orm"
@@ -24,13 +25,18 @@ func main() {
 	/*
 		建立實例
 	*/
-	var err error
-	if Publisher, err = orm.NewRedisClient("redis", config); err != nil {
+	if client, err := orm.NewRedisClient("redis", config); err == nil {
+		if info := client.Info("server"); info != nil {
+			fmt.Println(info["server"]["redis_version"])
+		}
+
+	} else {
 		panic(err.Error())
+
 	}
-	if Subscriber, err = orm.NewRedisClient("redis", config); err != nil {
-		panic(err.Error())
-	}
+	//if Subscriber, err = orm.NewRedisClient("redis", config); err != nil {
+	//	panic(err.Error())
+	//}
 	////上傳 key
 	//orm.RedisORM.SetKeyValue("test", "test", 0)
 	//發佈
