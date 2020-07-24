@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/codingXiang/configer v1.0.2-0.20200513072245-ec8070de9a16
 	github.com/codingXiang/go-logger v1.0.0
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/golang/protobuf v1.3.3 // indirect

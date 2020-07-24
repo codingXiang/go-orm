@@ -6,7 +6,9 @@ import (
 	"github.com/codingXiang/configer"
 	"github.com/codingXiang/go-logger"
 	"github.com/codingXiang/go-orm/model"
+	"github.com/ghodss/yaml"
 	"github.com/go-redis/redis"
+	"strings"
 	"time"
 )
 
@@ -19,6 +21,7 @@ type (
 		RemoveKey(key string) error
 		Publish(channel string, message interface{}) error
 		Subscribe(channel string) *redis.PubSub
+		Info(section ...string) map[string]map[string]interface{}
 	}
 	//RedisClient : Redis客戶端
 	RedisClient struct {
@@ -119,4 +122,31 @@ func (r *RedisClient) Publish(channel string, message interface{}) error {
 //Subscribe : 訂閱
 func (r *RedisClient) Subscribe(channel string) *redis.PubSub {
 	return r.client.Subscribe(channel)
+}
+
+func (r *RedisClient) Info(sections ...string) map[string]map[string]interface{} {
+	var (
+		result = make(map[string]map[string]interface{})
+	)
+	for _, section := range sections {
+		var (
+			sectionData string
+			sectionMap map[string]interface{}
+			err error
+		)
+		r.client.Info(section).Scan(&sectionData)
+		if sectionMap, err = r.parseSection(sectionData); err == nil {
+			result[section] = sectionMap
+		}
+	}
+	return result
+}
+
+func (r *RedisClient) parseSection(data string) (result map[string]interface{}, err error){
+	data = strings.ReplaceAll(data, ":", ": ")
+	dataTmp := strings.Split(data, "\r\n")
+	data = strings.Join(dataTmp[1:], "\n")
+	err = yaml.Unmarshal([]byte(data), &result)
+	fmt.Println("")
+	return
 }

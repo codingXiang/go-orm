@@ -19,6 +19,7 @@ import (
 type (
 	OrmInterface interface {
 		CloseDB()
+		ShowVersion() string
 		GetTableName(value interface{}) string
 		CheckTable(migrate bool, value interface{}) error
 		GetInstance() *gorm.DB
@@ -94,6 +95,11 @@ func (this *Orm) init(core configer.CoreInterface) (OrmInterface, error) {
 	}
 
 	return this, err
+}
+
+func (this *Orm) ShowVersion() (version string) {
+	this.GetInstance().DB().QueryRow("SELECT VERSION()").Scan(&version)
+	return
 }
 
 func (this *Orm) CloseDB() {
