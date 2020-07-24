@@ -284,7 +284,7 @@ func (this *Orm) CheckVersion() error {
 func (this *Orm) Upgrade(tables ...interface{}) error {
 	if err := this.CheckVersion(); err == nil {
 		for _, table := range tables {
-			if err := this.CheckTable(true, table); err != nil {
+			if err := this.CheckTable(true, &table); err != nil {
 				return err
 			}
 		}
