@@ -1,0 +1,6 @@
+redis:
+  url: '10.40.41.128'
+  port: 6379
+  password: 'a12345'
+  db: 0
+  prefix: 'digiwincloud_'
