@@ -1,8 +1,10 @@
-package orm
+package redis
 
 import (
 	"fmt"
+	"github.com/codingXiang/configer/v2"
 	"github.com/codingXiang/go-logger/v2"
+	"github.com/codingXiang/go-orm/v2"
 	"github.com/ghodss/yaml"
 	"github.com/go-redis/redis"
 	"github.com/spf13/viper"
@@ -10,32 +12,35 @@ import (
 	"time"
 )
 
-type (
-	//RedisClient : Redis客戶端
-	RedisClient struct {
-		*redis.Client
-		prefix string
-	}
-)
+type RedisClient struct {
+	*redis.Client
+	prefix string
+}
 
 var (
 	RedisORM *RedisClient
 )
 
-//NewRedisClient : 建立 Redis Client 實例
-func NewRedisClient(configName string, config *viper.Viper) (*RedisClient, error) {
-	var (
-		rc  = new(RedisClient)
-		err error
-	)
+func NewRedis(r *Redis) *RedisClient {
+	c := viper.New()
+	c.Set(configer.GetConfigPath(REDIS, orm.Url), r.URL)
+	c.Set(configer.GetConfigPath(REDIS, orm.Port), r.Port)
+	c.Set(configer.GetConfigPath(REDIS, DB), r.DB)
+	c.Set(configer.GetConfigPath(REDIS, orm.Password), r.Password)
+	c.Set(configer.GetConfigPath(REDIS, Prefix), r.Prefix)
+	return New(c)
+}
 
+//New : 建立 Redis Client 實例
+func New(config *viper.Viper) *RedisClient {
+	var rc = new(RedisClient)
 	//讀取 config
 	var (
-		url      = config.GetString("redis.url")
-		port     = config.GetInt("redis.port")
-		password = config.GetString("redis.password")
-		db       = config.GetInt("redis.db")
-		prefix   = config.GetString("redis.prefix")
+		url      = config.GetString(configer.GetConfigPath(REDIS, orm.Url))
+		port     = config.GetInt(configer.GetConfigPath(REDIS, orm.Port))
+		password = config.GetString(configer.GetConfigPath(REDIS, orm.Password))
+		db       = config.GetInt(configer.GetConfigPath(REDIS, DB))
+		prefix   = config.GetString(configer.GetConfigPath(REDIS, Prefix))
 	)
 	//設定連線資訊
 	option := &redis.Options{
@@ -48,15 +53,16 @@ func NewRedisClient(configName string, config *viper.Viper) (*RedisClient, error
 	}
 	rc.Client = redis.NewClient(option)
 	logger.Log.Debug("check redis ...", rc.Client)
-	_, err = rc.GetInfo()
-	if err != nil {
-		errMsg := "redis connect error"
-		logger.Log.Error(errMsg, err)
-		return nil, err
-	} else {
-		logger.Log.Info("redis connect success")
-		return rc, nil
-	}
+	return rc
+	//_, err = rc.GetInfo()
+	//if err != nil {
+	//	errMsg := "redis connect error"
+	//	logger.Log.Error(errMsg, err)
+	//	return nil, err
+	//} else {
+	//	logger.Log.Info("redis connect success")
+	//	return rc, nil
+	//}
 }
 
 //GetRedisInfo 取得 Redis 資訊
