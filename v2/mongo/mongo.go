@@ -28,6 +28,7 @@ func NewMongo(r *Mongo) *Client {
 	c.Set(configer.GetConfigPath(MONGO, orm.Port), r.Port)
 	c.Set(configer.GetConfigPath(MONGO, orm.Username), r.Username)
 	c.Set(configer.GetConfigPath(MONGO, orm.Password), r.Password)
+	c.Set(configer.GetConfigPath(MONGO, DATABASE), r.Database)
 	c.Set(configer.GetConfigPath(MONGO, MODE), r.Mode)
 	return New(c)
 }
@@ -74,13 +75,13 @@ func (c *Client) Insert(data *RawData) error {
 	return c.Collection.Insert(data)
 }
 
-func (c *Client) First(selector SearchCondition) (*RawData, error) {
+func (c *Client) First(selector bson.M) (*RawData, error) {
 	target := new(RawData)
 	err := c.Collection.Find(selector).One(&target)
 	return target, err
 }
 
-func (c *Client) Find(selector SearchCondition) ([]*RawData, error) {
+func (c *Client) Find(selector bson.M) ([]*RawData, error) {
 	target := make([]*RawData, 0)
 	err := c.Collection.Find(selector).All(&target)
 	return target, err
@@ -90,7 +91,7 @@ func (c *Client) Update(selector bson.M, data interface{}) (*mgo.ChangeInfo, err
 	return c.Collection.Upsert(selector, data)
 }
 
-func (c *Client) Delete(selector SearchCondition) error {
+func (c *Client) Delete(selector bson.M) error {
 	return c.Collection.Remove(selector)
 }
 

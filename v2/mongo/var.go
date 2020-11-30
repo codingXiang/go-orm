@@ -12,8 +12,9 @@ const (
 )
 
 const (
-	_identity = "identity"
-	_raw      = "raw"
+	IDENTITY = "identity"
+	RAW      = "raw"
+	TAG      = "tag"
 )
 
 const (
@@ -37,9 +38,7 @@ type Mongo struct {
 	Collection string
 }
 
-type SearchCondition bson.M
-
-func NewSearchCondition(id string, identity string, data bson.M) SearchCondition {
+func NewSearchCondition(id string, identity string, tag bson.M, data bson.M) bson.M {
 	if data == nil {
 		data = make(bson.M)
 	}
@@ -48,23 +47,42 @@ func NewSearchCondition(id string, identity string, data bson.M) SearchCondition
 	}
 
 	if identity != "" {
-		data[_identity] = identity
+		data[IDENTITY] = identity
 	}
 
-	return SearchCondition(data)
+	if tag != nil {
+		data[TAG] = tag
+	}
+	return data
 }
 
 type RawData struct {
 	Identity string      `json:"identity"`
+	Tag      bson.M      `json:"tag"`
 	Raw      interface{} `json:"raw"`
 }
 
-func NewRawData(in interface{}) *RawData {
-	uid, _ := uuid.GenerateUUID()
+func NewRawData(id string, tag map[string]interface{}, raw interface{}) *RawData {
+	if id == "" {
+		id, _ = uuid.GenerateUUID()
+	}
+	if tag == nil {
+		tag = make(map[string]interface{})
+	}
 	out := new(RawData)
-	out.Identity = uid
-	out.Raw = in
+	out.Identity = id
+	out.Tag = tag
+	out.Raw = raw
 	return out
+}
+
+func (r *RawData) AddTag(key string, value interface{}) *RawData {
+	r.Tag[key] = value
+	return r
+}
+
+func (r *RawData) GetTag() map[string]interface{} {
+	return r.Tag
 }
 
 func (r *RawData) GetIdentity() string {
