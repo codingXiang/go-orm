@@ -81,9 +81,16 @@ func (c *Client) First(selector bson.M) (*RawData, error) {
 	return target, err
 }
 
-func (c *Client) Find(selector bson.M) ([]*RawData, error) {
+func (c *Client) Find(selector bson.M, queryCondition *QueryCondition) ([]*RawData, error) {
 	target := make([]*RawData, 0)
-	err := c.Collection.Find(selector).All(&target)
+	var q = c.Collection.Find(selector)
+	if queryCondition.Sort != nil {
+		q = q.Sort(queryCondition.Sort...)
+	}
+	if queryCondition.Limit != 0 {
+		q = q.Limit(queryCondition.Limit)
+	}
+	err := q.All(&target)
 	return target, err
 }
 

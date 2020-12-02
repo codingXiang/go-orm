@@ -38,6 +38,11 @@ type Mongo struct {
 	Collection string
 }
 
+type QueryCondition struct {
+	Limit int      `json:"limit"`
+	Sort  []string `json:"sort"`
+}
+
 func NewSearchCondition(id string, identity string, tag bson.M, data bson.M) bson.M {
 	if data == nil {
 		data = make(bson.M)
