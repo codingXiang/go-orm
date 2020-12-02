@@ -1,17 +1,21 @@
 package mongo
 
 import (
+	"encoding/json"
 	"github.com/codingXiang/configer/v2"
 	"github.com/codingXiang/go-orm/v2"
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"sync"
+	"time"
 )
 
 type Client struct {
 	*mgo.Session
 	*mgo.Database
 	*mgo.Collection
+	lock sync.Mutex
 }
 
 const (
@@ -72,6 +76,8 @@ func (c *Client) C(name string) *Client {
 }
 
 func (c *Client) Insert(data *RawData) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	return c.Collection.Insert(data)
 }
 
@@ -95,10 +101,14 @@ func (c *Client) Find(selector bson.M, queryCondition *QueryCondition) ([]*RawDa
 }
 
 func (c *Client) Update(selector bson.M, data interface{}) (*mgo.ChangeInfo, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	return c.Collection.Upsert(selector, data)
 }
 
 func (c *Client) Delete(selector bson.M) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	return c.Collection.Remove(selector)
 }
 
@@ -133,4 +143,38 @@ func (c *Client) getSessionMode(mode string) mgo.Mode {
 	default:
 		return mgo.Primary
 	}
+}
+
+func (c *Client) WaitForChange(collection string, selector bson.M, onChange func(data *RawData), onDelete func()) error {
+	data, err := c.C(collection).First(selector)
+	if err != nil {
+		return err
+	}
+	originTag, _ := json.Marshal(data.Tag)
+	originRaw, _ := json.Marshal(data.Raw)
+CHECK:
+	for {
+		select {
+		case <-time.Tick(1 * time.Second):
+			check, err1 := c.First(selector)
+			if check.Identity == "" {
+				onDelete()
+				break CHECK
+			} else {
+				checkTag, _ := json.Marshal(check.Tag)
+				checkRaw, _ := json.Marshal(check.Raw.(bson.M))
+				if err1 == nil {
+					if string(originTag) != string(checkTag) || string(originRaw) != string(checkRaw) {
+						onChange(check)
+						break CHECK
+					}
+				} else {
+					err = err1
+					break CHECK
+				}
+			}
+
+		}
+	}
+	return err
 }
