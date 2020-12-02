@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/codingXiang/configer/v2"
 	"github.com/codingXiang/go-orm/v2"
@@ -145,7 +146,10 @@ func (c *Client) getSessionMode(mode string) mgo.Mode {
 	}
 }
 
-func (c *Client) WaitForChange(collection string, selector bson.M, onChange func(data *RawData) (bool, error), onDelete func()) error {
+func (c *Client) WaitForChange(ctx context.Context, collection string, selector bson.M, onChange func(data *RawData) (bool, error), onDelete func()) error {
+	//start := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, 1 * time.Minute)
+	defer cancel()
 	data, err := c.C(collection).First(selector)
 	if err != nil {
 		return err
@@ -157,7 +161,10 @@ func (c *Client) WaitForChange(collection string, selector bson.M, onChange func
 CHECK:
 	for {
 		select {
-		case <-time.Tick(1 * time.Second):
+		case <-ctx.Done():
+			err = ctx.Err()
+			break CHECK
+		case <-time.Tick(3 * time.Second):
 			check, err1 := c.First(selector)
 			if check.Identity == "" {
 				onDelete()
@@ -186,7 +193,6 @@ CHECK:
 					break CHECK
 				}
 			}
-
 		}
 	}
 	return err
