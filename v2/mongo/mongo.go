@@ -145,7 +145,7 @@ func (c *Client) getSessionMode(mode string) mgo.Mode {
 	}
 }
 
-func (c *Client) WaitForChange(collection string, selector bson.M, onChange func(data *RawData) bool, onDelete func()) error {
+func (c *Client) WaitForChange(collection string, selector bson.M, onChange func(data *RawData) (bool, error), onDelete func()) error {
 	data, err := c.C(collection).First(selector)
 	if err != nil {
 		return err
@@ -169,7 +169,9 @@ CHECK:
 				checkRaw := string(tmp)
 				if err1 == nil {
 					if originTag != checkTag || originRaw != checkRaw {
-						if onChange(check) {
+						stop, e := onChange(check)
+						if stop {
+							err = e
 							break CHECK
 						} else {
 							originRaw = checkRaw
