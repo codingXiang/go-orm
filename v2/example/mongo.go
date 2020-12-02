@@ -34,8 +34,9 @@ func main() {
 		fmt.Println(string(out))
 	}
 
-	client.WaitForChange(collection, selector, func(data *mongo.RawData) {
-		fmt.Println("change")
+	client.WaitForChange(collection, selector, func(data *mongo.RawData) bool {
+		fmt.Println(data.Tag)
+		return true
 	}, func() {
 		fmt.Println("delete")
 	})

@@ -145,13 +145,15 @@ func (c *Client) getSessionMode(mode string) mgo.Mode {
 	}
 }
 
-func (c *Client) WaitForChange(collection string, selector bson.M, onChange func(data *RawData), onDelete func()) error {
+func (c *Client) WaitForChange(collection string, selector bson.M, onChange func(data *RawData) bool, onDelete func()) error {
 	data, err := c.C(collection).First(selector)
 	if err != nil {
 		return err
 	}
-	originTag, _ := json.Marshal(data.Tag)
-	originRaw, _ := json.Marshal(data.Raw)
+	tmp, _ := json.Marshal(data.Tag)
+	originTag := string(tmp)
+	tmp, _ = json.Marshal(data.Raw)
+	originRaw := string(tmp)
 CHECK:
 	for {
 		select {
@@ -161,12 +163,21 @@ CHECK:
 				onDelete()
 				break CHECK
 			} else {
-				checkTag, _ := json.Marshal(check.Tag)
-				checkRaw, _ := json.Marshal(check.Raw.(bson.M))
+				tmp, _ = json.Marshal(check.Tag)
+				checkTag := string(tmp)
+				tmp, _ = json.Marshal(check.Raw.(bson.M))
+				checkRaw := string(tmp)
 				if err1 == nil {
-					if string(originTag) != string(checkTag) || string(originRaw) != string(checkRaw) {
-						onChange(check)
-						break CHECK
+					if originTag != checkTag || originRaw != checkRaw {
+						if onChange(check) {
+							break CHECK
+						} else {
+							originRaw = checkRaw
+							originTag = checkTag
+						}
+					} else {
+						originRaw = checkRaw
+						originTag = checkTag
 					}
 				} else {
 					err = err1
