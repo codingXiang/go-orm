@@ -164,7 +164,7 @@ CHECK:
 		case <-ctx.Done():
 			err = ctx.Err()
 			break CHECK
-		case <-time.Tick(3 * time.Second):
+		case <-time.Tick(1):
 			check, err1 := c.First(selector)
 			if check.Identity == "" {
 				onDelete()
