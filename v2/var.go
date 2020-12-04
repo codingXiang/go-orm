@@ -49,3 +49,12 @@ const (
 	MaxIdleConns = "maxIdleConns"
 	MaxLifeTime  = "maxLifeTime"
 )
+
+const (
+	CACHE           = "cache"
+	EXPIRE          = "expire"
+	LEVEL           = "level"
+	DEBUG           = "debug"
+	ASYNC_WRITE     = "asyncWrite"
+	PENETRATIONSAFE = "penetrationSafe"
+)

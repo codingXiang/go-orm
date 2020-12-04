@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/codingXiang/go-orm/v2/mongo"
+	"time"
 )
 
 func main() {
@@ -24,23 +26,25 @@ func main() {
 	if err := client.C(collection).Insert(data); err != nil {
 		panic(err)
 	}
-	fmt.Println(data.Tag)
+	//fmt.Println(data.Tag)
 	//搜尋
 	selector := mongo.NewSearchCondition("", "1234", nil, nil)
-	if d, err := client.C(collection).First(selector); err != nil {
-		panic(err)
-	} else {
-		out, _ := json.Marshal(d)
-		fmt.Println(string(out))
-	}
+	//if _, err := client.C(collection).First(selector); err != nil {
+	//	panic(err)
+	//}
+	//
 
-	client.WaitForChange(collection, selector, func(data *mongo.RawData) (bool, error) {
+	c := context.Background()
+	ctx, _ := context.WithTimeout(c, 5 * time.Minute)
+	err = client.WaitForChange(ctx, func() (*mongo.RawData, error) {
+		return client.C(collection).First(selector)
+	}, func(data *mongo.RawData) (bool, error) {
 		fmt.Println(data.Tag)
 		return true, nil
 	}, func() {
 		fmt.Println("delete")
 	})
-
+	fmt.Println(err)
 	//刪除
 	//if err := client.C(collection).Delete(selector); err != nil {
 	//	panic(err)

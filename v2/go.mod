@@ -3,6 +3,7 @@ module github.com/codingXiang/go-orm/v2
 go 1.13
 
 require (
+	github.com/8treenet/gcache v1.1.10
 	github.com/codingXiang/configer/v2 v2.0.0
 	github.com/codingXiang/go-logger/v2 v2.0.3
 	github.com/ghodss/yaml v1.0.0
