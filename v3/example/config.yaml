@@ -1,0 +1,19 @@
+database:
+  url: '127.0.0.1'
+  port: 3306
+  name: 'test'
+  username: 'root'
+  password: '1qazxsw@'
+  type: 'mysql'
+  tablePrefix: ""
+  maxOpenConns: 1000
+  maxIdleConns: 1000
+  maxLifeTime: 5
+  log:
+    debug: false
+    slowThreshold: 1000
+    level: 1
+    ignoreRecordNotFoundError: false
+    colorful: false
+  upgradeFilePath: '/Users/user/go/src/pkg/orm/sql/'
+  version: "1.0.6"
